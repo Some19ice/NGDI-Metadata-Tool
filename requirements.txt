@@ -1,0 +1,11 @@
+Django==4.2.16
+djangorestframework==3.14.0
+django-extensions==3.2.3
+django-silk==5.0.4
+python-dotenv==1.0.0
+# API and authentication
+djangorestframework-simplejwt==5.3.1
+# Development and testing
+pylint==3.0.2
+pytest==7.4.3
+pytest-django==4.7.0 
