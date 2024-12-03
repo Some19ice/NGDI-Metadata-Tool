@@ -24,7 +24,7 @@ A Django-based RESTful API service for managing NGDI (National Geospatial Data I
 1. Clone the repository:
 ```bash
 git clone https://github.com/Some19ice/NGDI-Metadata-Tool.git
-cd NGDI_Metadat_Tool
+cd NGDI-Metadata-Tool
 ```
 
 2. Create and activate a virtual environment:
