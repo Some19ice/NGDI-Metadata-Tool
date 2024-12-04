@@ -9,7 +9,9 @@ A Django-based RESTful API service for managing NGDI (National Geospatial Data I
 - Support for multiple metadata standards
 - Geospatial data validation
 - Performance monitoring with Silk profiler
-- Comprehensive API documentation
+- Comprehensive metadata management with nested relationships
+- Filtering capabilities by status and date range
+- Comprehensive API with Swagger/OpenAPI documentation
 - Automated testing suite
 
 ## Prerequisites
@@ -19,7 +21,24 @@ A Django-based RESTful API service for managing NGDI (National Geospatial Data I
 - Git
 - Virtual environment (recommended)
 
-## Quick Start
+## API Endpoints
+
+### Main Endpoints
+
+- `/api/users/` - User management
+- `/api/metadata/` - Metadata records management
+
+### Authentication Endpoints
+
+- `/api/auth/` - DRF authentication
+- `/api/token-auth/` - Token authentication
+
+### Documentation
+
+- `/api/swagger/` - Swagger UI
+- `/api/redoc/` - ReDoc UI
+
+### Installation
 
 1. Clone the repository:
 ```bash
@@ -60,30 +79,16 @@ python manage.py migrate
 python manage.py createsuperuser
 ```
 
-7. Run the development server:
+7. (Optional) Populate database with sample data:
+```bash
+python manage.py populate_db
+```
+
+8. Run the development server:
 ```bash
 python manage.py runserver
 ```
 
-## API Endpoints
-
-The API provides the following main endpoints:
-
-- `/api/users/` - User management
-- `/api/metadata/` - Metadata records
-- `/api/identification/` - Dataset identification information
-- `/api/contacts/` - Point of contact information
-- `/api/constraints/` - Resource constraints
-- `/api/distributions/` - Distribution information
-- `/api/lineages/` - Resource lineage
-- `/api/reference-systems/` - Reference system information
-- `/api/metadata-contacts/` - Metadata contact information
-- `/api/quality/` - Data quality information
-- `/api/temporal-extents/` - Temporal extent information
-
-Authentication endpoints:
-- `/api/auth/` - Session authentication
-- `/api/token-auth/` - Token authentication
 
 ## Development
 
