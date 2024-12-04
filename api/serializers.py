@@ -269,6 +269,7 @@ class MetadataSerializer(serializers.ModelSerializer):
             'quality'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+        list_serializer_class = serializers.ListSerializer
 
     def to_representation(self, instance):
         """

@@ -6,6 +6,9 @@ from rest_framework.decorators import action
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_cookie
+from django.utils.dateparse import parse_date
+from django.utils import timezone
+from datetime import datetime
 from .models import (
     User, Metadata, IdentificationInfo, PointOfContact,
     ResourceConstraints, Distribution, ResourceLineage,
@@ -81,7 +84,14 @@ class MetadataViewSet(viewsets.ModelViewSet):
         start_date = self.request.query_params.get('start_date', None)
         end_date = self.request.query_params.get('end_date', None)
         if start_date and end_date:
-            queryset = queryset.filter(created_at__range=[start_date, end_date])
+            # Parse the date strings and create timezone-aware datetimes
+            start = timezone.make_aware(
+                datetime.combine(parse_date(start_date), datetime.min.time())
+            )
+            end = timezone.make_aware(
+                datetime.combine(parse_date(end_date), datetime.max.time())
+            )
+            queryset = queryset.filter(created_at__range=[start, end])
 
         # Filter based on user permissions
         user = self.request.user
@@ -115,35 +125,6 @@ class MetadataViewSet(viewsets.ModelViewSet):
         # Serialize the created objects for response
         response_serializer = self.get_serializer(metadata_objects, many=True)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-    def perform_bulk_create(self, serializer):
-        """Perform bulk create with user assignment"""
-        serializer.save(user=self.request.user)
-
-    @action(detail=False, methods=['post'])
-    def bulk_update(self, request):
-        """Optimized bulk update metadata records"""
-        from django.db import transaction
-        
-        ids = [item['id'] for item in request.data]
-        instances = self.get_queryset().filter(id__in=ids)
-        
-        serializer = self.get_serializer(
-            instances,
-            data=request.data,
-            many=True,
-            partial=True
-        )
-        serializer.is_valid(raise_exception=True)
-        
-        with transaction.atomic():
-            self.perform_bulk_update(serializer)
-            
-        return Response(serializer.data)
-
-    def perform_bulk_update(self, serializer):
-        """Perform bulk update"""
-        serializer.save()
 
     @action(detail=False, methods=['post'])
     def bulk_delete(self, request):
