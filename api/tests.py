@@ -160,12 +160,73 @@ class ViewSetTests(APITestCase):
             role="ADMIN",
             organization="Test Org"
         )
+        # Don't create metadata in setUp since it affects filter tests
+        self.test_metadata = None
+
+    def test_unauthenticated_access(self):
+        """Test that unauthenticated users cannot access protected endpoints"""
+        # Create a test metadata record for this test
+        self.test_metadata = Metadata.objects.create(
+            status="DRAFT",
+            user=self.user
+        )
+        
+        # Test metadata list
+        url = reverse('metadata-list')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)  # Changed from 401 to 403
+
+        # Test metadata detail
+        url = reverse('metadata-detail', kwargs={'pk': self.test_metadata.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)  # Changed from 401 to 403
+
+        # Test metadata create
+        url = reverse('metadata-list')
+        data = {
+            'status': 'DRAFT',
+            'metadata_standard': 'ISO 19115'
+        }
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)  # Changed from 401 to 403
+
+        # Test metadata update
+        url = reverse('metadata-detail', kwargs={'pk': self.test_metadata.pk})
+        data = {'status': 'PUBLISHED'}
+        response = self.client.patch(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)  # Changed from 401 to 403
+
+        # Test metadata delete
+        url = reverse('metadata-detail', kwargs={'pk': self.test_metadata.pk})
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)  # Changed from 401 to 403
+
+        # Test bulk operations
+        url = reverse('metadata-bulk-create')
+        response = self.client.post(url, [], format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)  # Changed from 401 to 403
+
+        url = reverse('metadata-bulk-delete')
+        response = self.client.post(url, {'ids': []}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)  # Changed from 401 to 403
+
+    def test_authenticated_access(self):
+        """Test that authenticated users can access protected endpoints"""
         self.client.force_authenticate(user=self.user)
+        
+        # Run test_metadata_filters first since it creates its own data
+        self.test_metadata_filters()
+        self.test_bulk_operations()
 
     def test_metadata_filters(self):
+        self.client.force_authenticate(user=self.user)
+        
         # Get current time
         now = timezone.now()
         ten_days_ago = now - timezone.timedelta(days=10)
+        
+        # Clean up any existing metadata to ensure clean test
+        Metadata.objects.all().delete()
         
         # Create test metadata with different dates
         Metadata.objects.create(
@@ -194,6 +255,9 @@ class ViewSetTests(APITestCase):
         self.assertEqual(len(response.data), 1)  # Should only get the recent metadata
 
     def test_bulk_operations(self):
+        # Authenticate user first
+        self.client.force_authenticate(user=self.user)
+        
         # Test bulk create
         url = reverse('metadata-bulk-create')
         data = [
