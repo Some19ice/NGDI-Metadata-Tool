@@ -1,11 +1,14 @@
 # pylint: disable=C0115, E1101, C0114, C0303, C0301, W0613
 
+from datetime import datetime
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_cookie
+from django.utils.dateparse import parse_date
+from django.utils import timezone
 from .models import (
     User, Metadata, IdentificationInfo, PointOfContact,
     ResourceConstraints, Distribution, ResourceLineage,
@@ -59,18 +62,7 @@ class MetadataViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Optimize queryset with select_related"""
-        queryset = Metadata.objects.select_related(
-            'user',
-            'identification',
-            'identification__point_of_contact',
-            'identification__constraints',
-            'identification__temporal_extent',
-            'distribution',
-            'lineage',
-            'reference_system',
-            'contact',
-            'quality'
-        )
+        queryset = super().get_queryset()
 
         # Add filters based on query parameters
         status_filter = self.request.query_params.get('status', None)
@@ -81,16 +73,23 @@ class MetadataViewSet(viewsets.ModelViewSet):
         start_date = self.request.query_params.get('start_date', None)
         end_date = self.request.query_params.get('end_date', None)
         if start_date and end_date:
-            queryset = queryset.filter(created_at__range=[start_date, end_date])
+            start = timezone.make_aware(
+                datetime.combine(parse_date(start_date), datetime.min.time())
+            )
+            end = timezone.make_aware(
+                datetime.combine(parse_date(end_date), datetime.max.time())
+            )
+            queryset = queryset.filter(created_at__range=[start, end])
 
         # Filter based on user permissions
         user = self.request.user
         if not user.is_authenticated:
             return queryset.none()
-        if user.role != 'ADMIN':
-            queryset = queryset.filter(user=user)
-
-        return queryset
+        # Allow superusers and admins to see all metadata
+        if user.is_superuser or user.role == 'ADMIN':
+            return queryset
+        # Regular users only see their own metadata
+        return queryset.filter(user=user)
 
     def get_serializer_context(self):
         """Add request to serializer context"""
@@ -115,35 +114,6 @@ class MetadataViewSet(viewsets.ModelViewSet):
         # Serialize the created objects for response
         response_serializer = self.get_serializer(metadata_objects, many=True)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-    def perform_bulk_create(self, serializer):
-        """Perform bulk create with user assignment"""
-        serializer.save(user=self.request.user)
-
-    @action(detail=False, methods=['post'])
-    def bulk_update(self, request):
-        """Optimized bulk update metadata records"""
-        from django.db import transaction
-        
-        ids = [item['id'] for item in request.data]
-        instances = self.get_queryset().filter(id__in=ids)
-        
-        serializer = self.get_serializer(
-            instances,
-            data=request.data,
-            many=True,
-            partial=True
-        )
-        serializer.is_valid(raise_exception=True)
-        
-        with transaction.atomic():
-            self.perform_bulk_update(serializer)
-            
-        return Response(serializer.data)
-
-    def perform_bulk_update(self, serializer):
-        """Perform bulk update"""
-        serializer.save()
 
     @action(detail=False, methods=['post'])
     def bulk_delete(self, request):
