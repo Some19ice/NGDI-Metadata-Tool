@@ -243,93 +243,45 @@ class DataQualitySerializer(serializers.ModelSerializer):
 
 class MetadataSerializer(serializers.ModelSerializer):
     """Serializer for Metadata model."""
-    identification = IdentificationInfoSerializer(required=False)
-    distribution = DistributionSerializer(required=False)
-    lineage = ResourceLineageSerializer(required=False)
-    reference_system = ReferenceSystemSerializer(required=False)
-    contact = MetadataContactSerializer(required=False)
-    quality = DataQualitySerializer(required=False)
-    user = UserSerializer(read_only=True)
+    identification = IdentificationInfoSerializer()
+    distribution = DistributionSerializer()
+    lineage = ResourceLineageSerializer()
+    reference_system = ReferenceSystemSerializer()
+    contact = MetadataContactSerializer()
+    quality = DataQualitySerializer()
 
     class Meta:
         model = Metadata
-        fields = [
-            'id',
-            'status',
-            'user',
-            'metadata_linkage',
-            'metadata_standard',
-            'created_at',
-            'updated_at',
-            'identification',
-            'distribution',
-            'lineage',
-            'reference_system',
-            'contact',
-            'quality'
-        ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
-        list_serializer_class = serializers.ListSerializer
-
-    def to_representation(self, instance):
-        """
-        Optimize database queries by using select_related
-        """
-        # If instance is a dict (during bulk operations), return it as is
-        if isinstance(instance, dict):
-            return super().to_representation(instance)
-        
-        # For model instances, perform the prefetch optimization
-        if not hasattr(instance, '_prefetched_objects_cache'):
-            try:
-                instance = Metadata.objects.select_related(
-                    'user',
-                    'identification',
-                    'identification__point_of_contact',
-                    'identification__constraints',
-                    'identification__temporal_extent',
-                    'distribution',
-                    'lineage',
-                    'reference_system',
-                    'contact',
-                    'quality'
-                ).get(id=instance.id)
-            except Metadata.DoesNotExist:
-                pass  # Handle newly created instances that might not be in DB yet
-        
-        return super().to_representation(instance)
+        fields = '__all__'
+        read_only_fields = ('user',)
 
     def create(self, validated_data):
-        """Create Metadata with nested relationships in a single transaction."""
-        from django.db import transaction
-        
-        with transaction.atomic():
-            # Extract nested data
-            identification_data = validated_data.pop('identification', None)
-            distribution_data = validated_data.pop('distribution', None)
-            lineage_data = validated_data.pop('lineage', None)
-            reference_system_data = validated_data.pop('reference_system', None)
-            contact_data = validated_data.pop('contact', None)
-            quality_data = validated_data.pop('quality', None)
-            
-            # Create main metadata instance
-            metadata = Metadata.objects.create(**validated_data)
-            
-            # Create related objects in bulk if possible
-            if identification_data:
-                IdentificationInfo.objects.create(metadata=metadata, **identification_data)
-            if distribution_data:
-                Distribution.objects.create(metadata=metadata, **distribution_data)
-            if lineage_data:
-                ResourceLineage.objects.create(metadata=metadata, **lineage_data)
-            if reference_system_data:
-                ReferenceSystem.objects.create(metadata=metadata, **reference_system_data)
-            if contact_data:
-                MetadataContact.objects.create(metadata=metadata, **contact_data)
-            if quality_data:
-                DataQuality.objects.create(metadata=metadata, **quality_data)
-            
-            return metadata
+        # Extract nested data
+        identification_data = validated_data.pop('identification', None)
+        distribution_data = validated_data.pop('distribution', None)
+        lineage_data = validated_data.pop('lineage', None)
+        reference_system_data = validated_data.pop('reference_system', None)
+        contact_data = validated_data.pop('contact', None)
+        quality_data = validated_data.pop('quality', None)
+
+        # Create main metadata instance
+        metadata = Metadata.objects.create(**validated_data)
+
+        # Create related objects if data provided
+        if identification_data:
+            IdentificationInfo.objects.create(metadata=metadata, **identification_data)
+        if distribution_data:
+            Distribution.objects.create(metadata=metadata, **distribution_data)
+        if lineage_data:
+            ResourceLineage.objects.create(metadata=metadata, **lineage_data)
+        if reference_system_data:
+            ReferenceSystem.objects.create(metadata=metadata, **reference_system_data)
+        if contact_data:
+            MetadataContact.objects.create(metadata=metadata, **contact_data)
+        if quality_data:
+            DataQuality.objects.create(metadata=metadata, **quality_data)
+
+        return metadata
 
     def update(self, instance, validated_data):
         """Update Metadata with nested relationships."""
@@ -340,40 +292,41 @@ class MetadataSerializer(serializers.ModelSerializer):
         contact_data = validated_data.pop('contact', None)
         quality_data = validated_data.pop('quality', None)
         
+        # Update main metadata instance
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
         
-        if identification_data:
-            IdentificationInfo.objects.update_or_create(
-                metadata=instance,
-                defaults=identification_data
-            )
-        if distribution_data:
-            Distribution.objects.update_or_create(
-                metadata=instance,
-                defaults=distribution_data
-            )
-        if lineage_data:
-            ResourceLineage.objects.update_or_create(
-                metadata=instance,
-                defaults=lineage_data
-            )
-        if reference_system_data:
-            ReferenceSystem.objects.update_or_create(
-                metadata=instance,
-                defaults=reference_system_data
-            )
-        if contact_data:
-            MetadataContact.objects.update_or_create(
-                metadata=instance,
-                defaults=contact_data
-            )
-        if quality_data:
-            DataQuality.objects.update_or_create(
-                metadata=instance,
-                defaults=quality_data
-            )
+        # Update nested objects only if data is provided
+        if identification_data and instance.identification:
+            for attr, value in identification_data.items():
+                setattr(instance.identification, attr, value)
+            instance.identification.save()
+            
+        if distribution_data and instance.distribution:
+            for attr, value in distribution_data.items():
+                setattr(instance.distribution, attr, value)
+            instance.distribution.save()
+            
+        if lineage_data and instance.lineage:
+            for attr, value in lineage_data.items():
+                setattr(instance.lineage, attr, value)
+            instance.lineage.save()
+            
+        if reference_system_data and instance.reference_system:
+            for attr, value in reference_system_data.items():
+                setattr(instance.reference_system, attr, value)
+            instance.reference_system.save()
+            
+        if contact_data and instance.contact:
+            for attr, value in contact_data.items():
+                setattr(instance.contact, attr, value)
+            instance.contact.save()
+            
+        if quality_data and instance.quality:
+            for attr, value in quality_data.items():
+                setattr(instance.quality, attr, value)
+            instance.quality.save()
         
         return instance
 

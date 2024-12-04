@@ -173,7 +173,7 @@ class IdentificationInfo(BaseModel):
     keywords = models.JSONField(default=list, db_index=True)
     keyword_type = models.CharField(max_length=255, null=True, blank=True)
     metadata = models.OneToOneField(
-        Metadata, on_delete=models.PROTECT, related_name='identification'
+        Metadata, on_delete=models.CASCADE, related_name='identification'
     )
 
     def clean(self):

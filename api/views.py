@@ -1,5 +1,6 @@
 # pylint: disable=C0115, E1101, C0114, C0303, C0301, W0613
 
+from datetime import datetime
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -8,7 +9,6 @@ from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_cookie
 from django.utils.dateparse import parse_date
 from django.utils import timezone
-from datetime import datetime
 from .models import (
     User, Metadata, IdentificationInfo, PointOfContact,
     ResourceConstraints, Distribution, ResourceLineage,
@@ -62,18 +62,7 @@ class MetadataViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Optimize queryset with select_related"""
-        queryset = Metadata.objects.select_related(
-            'user',
-            'identification',
-            'identification__point_of_contact',
-            'identification__constraints',
-            'identification__temporal_extent',
-            'distribution',
-            'lineage',
-            'reference_system',
-            'contact',
-            'quality'
-        )
+        queryset = super().get_queryset()
 
         # Add filters based on query parameters
         status_filter = self.request.query_params.get('status', None)
@@ -84,7 +73,6 @@ class MetadataViewSet(viewsets.ModelViewSet):
         start_date = self.request.query_params.get('start_date', None)
         end_date = self.request.query_params.get('end_date', None)
         if start_date and end_date:
-            # Parse the date strings and create timezone-aware datetimes
             start = timezone.make_aware(
                 datetime.combine(parse_date(start_date), datetime.min.time())
             )
@@ -97,10 +85,11 @@ class MetadataViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if not user.is_authenticated:
             return queryset.none()
-        if user.role != 'ADMIN':
-            queryset = queryset.filter(user=user)
-
-        return queryset
+        # Allow superusers and admins to see all metadata
+        if user.is_superuser or user.role == 'ADMIN':
+            return queryset
+        # Regular users only see their own metadata
+        return queryset.filter(user=user)
 
     def get_serializer_context(self):
         """Add request to serializer context"""
