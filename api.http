@@ -1,1 +1,14 @@
 GET http://localhost:8000/api/metadata/ HTTP/1.1
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzMzODMzMzU2LCJpYXQiOjE3MzM4Mjk3NTYsImp0aSI6ImM3NWIxMmQ2MWJiMTQyNDBhOWZhYWIxNTIwMDQxZGE1IiwidXNlcl9pZCI6MX0.xodyKmhyMblb2qQ4rxGT6qfWdQaHUXZr3JTnnFDZlug
+
+###
+
+POST http://localhost:8000/api/token/ HTTP/1.1
+Content-Type: application/json
+
+{
+  "email": "yaks@example.com",
+  "password": "custom02"
+}
+

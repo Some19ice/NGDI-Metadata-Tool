@@ -1,9 +1,10 @@
-# pylint: disable=C0114, E0401
+# pylint: disable=C0114, E0401, W0611
 
 from django.urls import path, include, re_path
 from rest_framework import permissions
 from rest_framework.routers import DefaultRouter
-from rest_framework.authtoken.views import obtain_auth_token
+from rest_framework.authtoken.views import obtain_auth_token 
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_yasg import openapi # type: ignore
 from drf_yasg.views import get_schema_view # type: ignore
 from . import views
@@ -31,7 +32,8 @@ router.register(r'metadata', views.MetadataViewSet)
 urlpatterns = [
     path('', include(router.urls)),
     path('auth/', include('rest_framework.urls')),
-    path('token-auth/', obtain_auth_token, name='api_token_auth'),
+    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', 
             schema_view.without_ui(cache_timeout=0), 
             name='schema-json'),
